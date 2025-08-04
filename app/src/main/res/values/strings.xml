@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">FaceCircleTracker</string>
+    <string name="face_guide">Yüz hizalama çemberi</string>
+    <string name="direction_arrow">Yön oku</string>
+    <string name="direction_text">Yön bilgisi</string>
+</resources>

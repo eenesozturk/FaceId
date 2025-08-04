@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Kamera önizlemesi -->
+    <androidx.camera.view.PreviewView
+        android:id="@+id/previewView"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Dinamik çember -->
+    <com.enesozturk.facecircletracker.CircularProgressView
+        android:id="@+id/circleProgress"
+        android:layout_width="400dp"
+        android:layout_height="400dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Yüz hizalama rehberi -->
+    <ImageView
+        android:id="@+id/faceGuide"
+        android:layout_width="380dp"
+        android:layout_height="380dp"
+        android:src="@drawable/face_guide"
+        android:alpha="0.4"
+        android:contentDescription="Yüz hizalama rehberi"
+        app:layout_constraintTop_toTopOf="@id/circleProgress"
+        app:layout_constraintBottom_toBottomOf="@id/circleProgress"
+        app:layout_constraintStart_toStartOf="@id/circleProgress"
+        app:layout_constraintEnd_toEndOf="@id/circleProgress" />
+
+    <!-- Ok simgesi -->
+    <ImageView
+        android:id="@+id/directionArrow"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:visibility="gone"
+        android:scaleType="centerInside"
+        app:srcCompat="@drawable/ic_arrow_up"
+        app:tint="@android:color/white"
+        android:layout_marginTop="64dp"
+        android:contentDescription="Yön oku"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Yön metni -->
+    <TextView
+        android:id="@+id/directionText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Yön bilgisi"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        android:layout_marginTop="40dp"
+        app:layout_constraintTop_toBottomOf="@id/directionArrow"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
