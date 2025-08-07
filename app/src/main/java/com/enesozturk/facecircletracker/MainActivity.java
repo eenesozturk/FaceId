@@ -36,9 +36,9 @@ public class MainActivity extends AppCompatActivity {
     private CircularProgressView circleProgress;
     private ExecutorService cameraExecutor;
 
-    private int progress = 0;
-    private String currentTarget = "center";
-    private boolean centerDone = false, rightDone = false, leftDone = false, upDone = false, downDone = false;
+    private final String[] directions = {"center", "right", "rightUp", "rightDown", "left", "leftUp", "leftDown", "up", "down"};
+    private int currentDirectionIndex = 0;
+    private boolean[] directionStates = new boolean[9];
     private boolean faceCompleted = false;
 
     private final ActivityResultLauncher<String> cameraPermissionLauncher =
@@ -97,72 +97,67 @@ public class MainActivity extends AppCompatActivity {
                             return;
                         }
 
-                        String instruction = "";
-                        boolean correctDirection = false;
-                        int iconRes = 0;
+                        String target = directions[currentDirectionIndex];
+                        boolean correct = false;
+                        int icon = R.drawable.ic_arrow_up;
+                        String text = "";
 
-                        switch (currentTarget) {
+                        switch (target) {
                             case "center":
-                                instruction = "Lütfen düz bakınız";
-                                iconRes = R.drawable.ic_arrow_up;
-                                correctDirection = Math.abs(rotY) < 10 && Math.abs(rotX) < 10;
+                                correct = Math.abs(rotY) < 10 && Math.abs(rotX) < 10;
+                                icon = R.drawable.ic_arrow_up;
+                                text = "Lütfen düz bakınız";
                                 break;
                             case "right":
-                                instruction = "Lütfen sağa bakınız";
-                                iconRes = R.drawable.ic_arrow_right;
-                                correctDirection = rotY < -30;
+                                correct = rotY < -30;
+                                icon = R.drawable.ic_arrow_right;
+                                text = "Lütfen sağa bakınız";
+                                break;
+                            case "rightUp":
+                                correct = rotY < -30 && rotX > 15;
+                                icon = R.drawable.ic_arrow_right_up;
+                                text = "Lütfen sağ üst bakınız";
+                                break;
+                            case "rightDown":
+                                correct = rotY < -30 && rotX < -15;
+                                icon = R.drawable.ic_arrow_right_down;
+                                text = "Lütfen sağ alt bakınız";
                                 break;
                             case "left":
-                                instruction = "Lütfen sola bakınız";
-                                iconRes = R.drawable.ic_arrow_left;
-                                correctDirection = rotY > 30;
+                                correct = rotY > 30;
+                                icon = R.drawable.ic_arrow_left;
+                                text = "Lütfen sola bakınız";
+                                break;
+                            case "leftUp":
+                                correct = rotY > 30 && rotX > 15;
+                                icon = R.drawable.ic_arrow_left_up;
+                                text = "Lütfen sol üst bakınız";
+                                break;
+                            case "leftDown":
+                                correct = rotY > 30 && rotX < -15;
+                                icon = R.drawable.ic_arrow_left_down;
+                                text = "Lütfen sol alt bakınız";
                                 break;
                             case "up":
-                                instruction = "Lütfen yukarı bakınız";
-                                iconRes = R.drawable.ic_arrow_up;
-                                correctDirection = rotX > 15;
+                                correct = rotX > 15;
+                                icon = R.drawable.ic_arrow_up;
+                                text = "Lütfen yukarı bakınız";
                                 break;
                             case "down":
-                                instruction = "Lütfen aşağı bakınız";
-                                iconRes = R.drawable.ic_arrow_down;
-                                correctDirection = rotX < -15;
+                                correct = rotX < -15;
+                                icon = R.drawable.ic_arrow_down;
+                                text = "Lütfen aşağı bakınız";
                                 break;
                         }
 
-                        if (correctDirection) {
-                            progress += 5;
-                            circleProgress.setProgressAnimated(progress);
+                        if (correct) {
+                            directionStates[currentDirectionIndex] = true;
+                            currentDirectionIndex++;
+                            circleProgress.setProgressAnimated((int) ((currentDirectionIndex / 9f) * 100));
                         }
 
-                        if (progress >= 100) {
-                            switch (currentTarget) {
-                                case "center":
-                                    centerDone = true;
-                                    currentTarget = "right";
-                                    break;
-                                case "right":
-                                    rightDone = true;
-                                    currentTarget = "left";
-                                    break;
-                                case "left":
-                                    leftDone = true;
-                                    currentTarget = "up";
-                                    break;
-                                case "up":
-                                    upDone = true;
-                                    currentTarget = "down";
-                                    break;
-                                case "down":
-                                    downDone = true;
-                                    break;
-                            }
-                            progress = 0;
-                            circleProgress.setProgress(0);
-                        }
-
-                        if (centerDone && rightDone && leftDone && upDone && downDone) {
+                        if (currentDirectionIndex >= 9) {
                             faceCompleted = true;
-
                             directionText.setText("Yüz başarıyla algılandı ✅");
                             directionArrow.setVisibility(View.GONE);
                             circleProgress.setVisibility(View.GONE);
@@ -175,9 +170,9 @@ public class MainActivity extends AppCompatActivity {
                                     .setPositiveButton("Tamam", (dialog, which) -> dialog.dismiss())
                                     .show();
                         } else {
-                            directionText.setText(instruction);
                             directionArrow.setVisibility(View.VISIBLE);
-                            directionArrow.setImageResource(iconRes);
+                            directionArrow.setImageResource(icon);
+                            directionText.setText(text);
                         }
                     });
                 }));
@@ -218,8 +213,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startGlowAnimation() {
-        int startColor = 0xFFCCCCCC; // Açık gri
-        int endColor = 0xFF00FFFF;   // Cam göbeği-mavi
+        int startColor = 0xFFCCCCCC;
+        int endColor = 0xFF00FFFF;
 
         ValueAnimator glowAnimator = ValueAnimator.ofObject(new ArgbEvaluator(), startColor, endColor, startColor);
         glowAnimator.setDuration(2000);

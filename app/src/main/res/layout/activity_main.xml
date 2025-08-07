@@ -18,8 +18,8 @@
     <!-- Dinamik çember -->
     <com.enesozturk.facecircletracker.CircularProgressView
         android:id="@+id/circleProgress"
-        android:layout_width="400dp"
-        android:layout_height="400dp"
+        android:layout_width="410dp"
+        android:layout_height="410dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -28,8 +28,8 @@
     <!-- Yüz hizalama rehberi -->
     <ImageView
         android:id="@+id/faceGuide"
-        android:layout_width="380dp"
-        android:layout_height="380dp"
+        android:layout_width="450dp"
+        android:layout_height="450dp"
         android:src="@drawable/face_guide"
         android:alpha="0.4"
         android:contentDescription="Yüz hizalama rehberi"
