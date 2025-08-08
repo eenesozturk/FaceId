@@ -31,15 +31,14 @@ import java.util.concurrent.Executors;
 public class MainActivity extends AppCompatActivity {
 
     private PreviewView previewView;
-    private ImageView directionArrow, faceGuide;
+    private ImageView faceGuide;
     private TextView directionText;
     private CircularProgressView circleProgress;
     private ExecutorService cameraExecutor;
 
-    private final String[] directions = {"center", "right", "rightUp", "rightDown", "left", "leftUp", "leftDown", "up", "down"};
-    private int currentDirectionIndex = 0;
-    private boolean[] directionStates = new boolean[9];
-    private boolean faceCompleted = false;
+    // eşik değerleri
+    private static final float YAW_SIDE = 30f;  // rotY
+    private static final float PITCH_UP = 15f;  // rotX
 
     private final ActivityResultLauncher<String> cameraPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
@@ -52,11 +51,11 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        previewView = findViewById(R.id.previewView);
-        directionArrow = findViewById(R.id.directionArrow);
+        previewView   = findViewById(R.id.previewView);
+        faceGuide     = findViewById(R.id.faceGuide);
         directionText = findViewById(R.id.directionText);
-        circleProgress = findViewById(R.id.circleProgress);
-        faceGuide = findViewById(R.id.faceGuide);
+        circleProgress= findViewById(R.id.circleProgress);
+
         cameraExecutor = Executors.newSingleThreadExecutor();
 
         startGlowAnimation();
@@ -86,93 +85,38 @@ public class MainActivity extends AppCompatActivity {
 
                 imageAnalysis.setAnalyzer(cameraExecutor, new FaceAnalyzer((rotY, rotX, boundingBox, imageW, imageH) -> {
                     runOnUiThread(() -> {
-                        if (faceCompleted) return;
+                        if (circleProgress.isAllCompleted()) return;
 
+                        // yüz çember içinde mi?
                         Rect scaledBox = scaleBoundingBox(boundingBox, imageW, imageH,
                                 previewView.getWidth(), previewView.getHeight());
-
                         if (!isFaceInsideCircle(scaledBox)) {
-                            directionText.setText("Lütfen yüzünüzü çemberin içine yerleştiriniz.");
-                            directionArrow.setVisibility(View.GONE);
+                            directionText.setText("Yüzünüzü çemberin içine yerleştiriniz");
                             return;
+                        } else {
+                            directionText.setText("Eksik dilimleri doldurun");
                         }
 
-                        String target = directions[currentDirectionIndex];
-                        boolean correct = false;
-                        int icon = R.drawable.ic_arrow_up;
-                        String text = "";
-
-                        switch (target) {
-                            case "center":
-                                correct = Math.abs(rotY) < 10 && Math.abs(rotX) < 10;
-                                icon = R.drawable.ic_arrow_up;
-                                text = "Lütfen düz bakınız";
-                                break;
-                            case "right":
-                                correct = rotY < -30;
-                                icon = R.drawable.ic_arrow_right;
-                                text = "Lütfen sağa bakınız";
-                                break;
-                            case "rightUp":
-                                correct = rotY < -30 && rotX > 15;
-                                icon = R.drawable.ic_arrow_right_up;
-                                text = "Lütfen sağ üst bakınız";
-                                break;
-                            case "rightDown":
-                                correct = rotY < -30 && rotX < -15;
-                                icon = R.drawable.ic_arrow_right_down;
-                                text = "Lütfen sağ alt bakınız";
-                                break;
-                            case "left":
-                                correct = rotY > 30;
-                                icon = R.drawable.ic_arrow_left;
-                                text = "Lütfen sola bakınız";
-                                break;
-                            case "leftUp":
-                                correct = rotY > 30 && rotX > 15;
-                                icon = R.drawable.ic_arrow_left_up;
-                                text = "Lütfen sol üst bakınız";
-                                break;
-                            case "leftDown":
-                                correct = rotY > 30 && rotX < -15;
-                                icon = R.drawable.ic_arrow_left_down;
-                                text = "Lütfen sol alt bakınız";
-                                break;
-                            case "up":
-                                correct = rotX > 15;
-                                icon = R.drawable.ic_arrow_up;
-                                text = "Lütfen yukarı bakınız";
-                                break;
-                            case "down":
-                                correct = rotX < -15;
-                                icon = R.drawable.ic_arrow_down;
-                                text = "Lütfen aşağı bakınız";
-                                break;
+                        // Merkez: düz bakış
+                        if (Math.abs(rotY) < 10 && Math.abs(rotX) < 10) {
+                            circleProgress.completeCenter();
                         }
 
-                        if (correct) {
-                            directionStates[currentDirectionIndex] = true;
-                            currentDirectionIndex++;
-                            circleProgress.setProgressAnimated((int) ((currentDirectionIndex / 9f) * 100));
+                        // Hedef yön — segment indeksini bul
+                        Integer idx = classifyDirection(rotY, rotX);
+                        if (idx != null) {
+                            circleProgress.completeDirection(idx);
                         }
 
-                        if (currentDirectionIndex >= 9) {
-                            faceCompleted = true;
+                        if (circleProgress.isAllCompleted()) {
                             directionText.setText("Yüz başarıyla algılandı ✅");
-                            directionArrow.setVisibility(View.GONE);
-                            circleProgress.setVisibility(View.GONE);
                             faceGuide.setVisibility(View.GONE);
-
                             new AlertDialog.Builder(MainActivity.this)
                                     .setTitle("✅ Başarılı")
-                                    .setMessage("Yüz başarıyla algılandı.")
+                                    .setMessage("Tüm dilimler doldu. Yüz başarıyla algılandı.")
                                     .setCancelable(false)
-                                    .setPositiveButton("Tamam", (dialog, which) -> dialog.dismiss())
+                                    .setPositiveButton("Tamam", (d, w) -> d.dismiss())
                                     .show();
-                        } else {
-                            directionArrow.setVisibility(View.VISIBLE);
-                            directionArrow.setImageResource(icon);
-                            directionText.setText(text);
                         }
                     });
                 }));
@@ -186,50 +130,68 @@ public class MainActivity extends AppCompatActivity {
         }, ContextCompat.getMainExecutor(this));
     }
 
+    // rotY (yaw): - sağ, + sol   — rotX (pitch): + yukarı, - aşağı
+    // Segment indexleri: up(0), rightUp(1), right(2), rightDown(3), down(4),
+    // leftDown(5), left(6), leftUp(7)
+    private Integer classifyDirection(float rotY, float rotX) {
+        boolean right = rotY < -YAW_SIDE;
+        boolean left  = rotY >  YAW_SIDE;
+        boolean up    = rotX >  PITCH_UP;
+        boolean down  = rotX < -PITCH_UP;
+
+        if (right && up)  return 1; // rightUp
+        if (right && down) return 3; // rightDown
+        if (left  && up)   return 7; // leftUp
+        if (left  && down) return 5; // leftDown
+
+        if (right) return 2; // right
+        if (left)  return 6; // left
+        if (up)    return 0; // up
+        if (down)  return 4; // down
+
+        return null;
+    }
+
     private Rect scaleBoundingBox(Rect box, int imageW, int imageH, int viewW, int viewH) {
         float scaleX = (float) viewW / imageW;
         float scaleY = (float) viewH / imageH;
-
-        int left = (int) (box.left * scaleX);
-        int top = (int) (box.top * scaleY);
-        int right = (int) (box.right * scaleX);
-        int bottom = (int) (box.bottom * scaleY);
-
-        return new Rect(left, top, right, bottom);
+        return new Rect(
+                (int) (box.left * scaleX),
+                (int) (box.top * scaleY),
+                (int) (box.right * scaleX),
+                (int) (box.bottom * scaleY)
+        );
     }
 
     private boolean isFaceInsideCircle(Rect faceBox) {
-        int[] location = new int[2];
-        circleProgress.getLocationOnScreen(location);
-        int cx = location[0] + circleProgress.getWidth() / 2;
-        int cy = location[1] + circleProgress.getHeight() / 2;
+        int[] loc = new int[2];
+        circleProgress.getLocationOnScreen(loc);
+        int cx = loc[0] + circleProgress.getWidth() / 2;
+        int cy = loc[1] + circleProgress.getHeight() / 2;
         int radius = circleProgress.getWidth() / 2;
 
         int fx = faceBox.centerX();
         int fy = faceBox.centerY();
 
-        double distance = Math.sqrt(Math.pow(fx - cx, 2) + Math.pow(fy - cy, 2));
-        return distance < radius * 0.8;
+        double dist = Math.hypot(fx - cx, fy - cy);
+        return dist < radius * 0.80;
     }
 
     private void startGlowAnimation() {
-        int startColor = 0xFFCCCCCC;
-        int endColor = 0xFF00FFFF;
+        int startColor = 0xFF66CCFF; // açık mavi
+        int endColor   = 0xFF00FFFF; // cam göbeği
 
-        ValueAnimator glowAnimator = ValueAnimator.ofObject(new ArgbEvaluator(), startColor, endColor, startColor);
-        glowAnimator.setDuration(2000);
-        glowAnimator.setRepeatCount(ValueAnimator.INFINITE);
-        glowAnimator.setRepeatMode(ValueAnimator.REVERSE);
-        glowAnimator.addUpdateListener(animation -> {
-            int color = (int) animation.getAnimatedValue();
-            circleProgress.setBorderColor(color);
-        });
-        glowAnimator.start();
+        ValueAnimator glow = ValueAnimator.ofObject(new ArgbEvaluator(), startColor, endColor, startColor);
+        glow.setDuration(2000);
+        glow.setRepeatCount(ValueAnimator.INFINITE);
+        glow.setRepeatMode(ValueAnimator.REVERSE);
+        glow.addUpdateListener(a -> circleProgress.setBorderColor((int) a.getAnimatedValue()));
+        glow.start();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        cameraExecutor.shutdown();
+        if (cameraExecutor != null) cameraExecutor.shutdown();
     }
 }
